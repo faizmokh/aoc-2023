@@ -24,7 +24,7 @@ struct Day03: AdventDay {
         
         var validNumbers = [Number]()
         for number in allNumbers {
-            let adjacentPositions = getAdjacentPositionsFor(number: number)
+            let adjacentPositions = number.getAdjacentPositions()
             if isSymbolsExist(entities: entities, positions: adjacentPositions) {
                 validNumbers.append(number)
             }
@@ -35,18 +35,98 @@ struct Day03: AdventDay {
         return sum
     }
     
+    
     // Replace this with your solution for the second part of the day's challenge.
     func part2() -> Any {
-        // Sum the maximum entries in each set of data
-        return 0
+        var allNumbers = [Number]()
+        var allGears = [Gear]()
+        for (y, line) in entities.enumerated() {
+            let numbers = getNumbersAndPosition(line: line, y: y)
+            let gears = getGearsPosition(line: line, y: y)
+            allNumbers.append(contentsOf: numbers)
+            allGears.append(contentsOf: gears)
+        }
+        
+        var sum = 0
+        for gear in allGears {
+            // find all numbers that are adjacent to the gear
+            let adjacentGearPositions = gear.getAdjacentPositions()
+            
+            // check if all numbers are adjacent to the gear, if so return the number
+            let adjacentNumbers = allNumbers.filter({ $0.positions.contains(where: { adjacentGearPositions.contains($0) }) })
+            let uniqueNumbers = Array(Set(adjacentNumbers))
+            if uniqueNumbers.count != 2 { continue }
+
+            let product = uniqueNumbers.reduce(1, { $0 * $1.intValue })
+            sum += product
+        }
+        
+        return sum
     }
     
-    struct Number {
+    // MARK: - Data
+    
+    struct Gear {
+        let position: Position
+        
+        func getAdjacentPositions() -> [Position] {
+            let adjacents: [(x: Int, y: Int)] = [
+                (-1, -1), (0, -1), (1, -1),
+                (-1, 0),         (1, 0),
+                (-1, 1), (0, 1), (1, 1)
+            ]
+            
+            var adjacentPositions = [Position]()
+            for adjacent in adjacents {
+                let x = position.x + adjacent.x
+                let y = position.y + adjacent.y
+                
+                guard x >= 0 && y >= 0 else { continue }
+                let adjacentPosition = Position(
+                    x: position.x + adjacent.x,
+                    y: position.y + adjacent.y
+                )
+                adjacentPositions.append(adjacentPosition)
+            }
+            
+            return Array(Set(adjacentPositions))
+        }
+    }
+    
+    struct Number: Equatable, Hashable {
         let value: String
         let positions: [Position]
         
         var intValue: Int {
             return Int(value) ?? 0
+        }
+                
+        func getAdjacentPositions() -> [Position] {
+            let adjacents: [(x: Int, y: Int)] = [
+                (-1, -1), (0, -1), (1, -1),
+                (-1, 0),         (1, 0),
+                (-1, 1), (0, 1), (1, 1)
+            ]
+            
+            var adjacentPositions = [Position]()
+            for position in positions {
+                for adjacent in adjacents {
+                    let x = position.x + adjacent.x
+                    let y = position.y + adjacent.y
+                    
+                    guard x >= 0 && y >= 0 else { continue }
+                    let adjacentPosition = Position(
+                        x: position.x + adjacent.x, 
+                        y: position.y + adjacent.y
+                    )
+                    adjacentPositions.append(adjacentPosition)
+                }
+            }
+
+            // remove adjacent position that overlaps with the number
+            let nonOverlapsPositions = adjacentPositions.filter({ !positions.contains($0) })
+            
+            return Array(Set(nonOverlapsPositions))
         }
     }
     
@@ -61,6 +141,18 @@ struct Day03: AdventDay {
 }
 
 extension Day03 {
+    private func getGearsPosition(line: [Character], y: Int) -> [Gear] {
+        var gears = [Gear]()
+        
+        for (x, character) in line.enumerated() {
+            if character == "*" {
+                let position = Position(x: x, y: y)
+                gears.append(Gear(position: position))
+            }
+        }
+        return gears
+    }
+    
     // loop through the line and find numbers and their positions
     private func getNumbersAndPosition(line: [Character], y: Int) -> [Number] {
         var numbers = [Number]()
@@ -93,43 +185,16 @@ extension Day03 {
         return numbers
     }
     
-    private func getAdjacentPositionsFor(number: Number) -> [Position] {
-        var positions = [Position]()
-        
-        let directions: [(x: Int, y: Int)] = [
-            (-1, 1),  (0, 1),  (1, 1),
-            (-1, 0),           (1, 0),
-            (-1, -1), (0, -1), (1, -1)
-        ]
-        
-        for position in number.positions {
-            for direction in directions {
-                let x = position.x + direction.x
-                let y = position.y + direction.y
-                positions.append(Position(x: x, y: y))
-            }
-        }
-        
-        var filteredPositions = [Position]()
-        
-        for position in positions {
-            if !number.positions.contains(where: { $0.x == position.x && $0.y == position.y }) {
-                filteredPositions.append(position)
-            }
-        }
-        
-        return Array(Set(filteredPositions))
-    }
-    
     private func isSymbolsExist(entities: [[Character]], positions: [Position]) -> Bool {
         let row = entities[0].count
-        let column = entities.count - 1
+        let column = entities.count
 
         for position in positions {
-            if position.x >= 0 && position.x < row && position.y >= 0 && position.y < column {
-                let char = entities[position.y][position.x]
-                if arrayOfSymbols.contains(char) {
-                    return true
+            if position.x < row && position.y < column {
+                if let char = entities[safe: position.y, position.x] {
+                    if arrayOfSymbols.contains(char) {
+                        return true
+                    }
                 }
             }
         }
@@ -137,3 +202,17 @@ extension Day03 {
     }
 }
 
+// MARK: - Extensions
+
+extension Array where Element: Collection {
+    subscript(safe row: Int, column: Int) -> Element.Element? {
+        guard row >= 0, row < self.count else {
+            return nil
+        }
+        let subArray = self[row]
+        guard column >= 0, column < subArray.count else {
+            return nil
+        }
+        return subArray[subArray.index(subArray.startIndex, offsetBy: column)]
+    }
+}

@@ -63,11 +63,34 @@ final class Day03Tests: XCTestCase {
     
     func testPart1_4() throws {
         let challenge = Day03(data: testData4)
-        XCTAssertEqual(String(describing: challenge.part1()), "503")
+        XCTAssertEqual(String(describing: challenge.part1()), "505")
+    }
+    
+    func testGivenNumber_itShouldHaveTheRightAdjacents() {
+        let sut = Day03.Number(value: "3", positions: [Day03.Position(x: 2, y: 2)])
+        let adjacentPositions = sut.getAdjacentPositions()
+        
+        XCTAssertEqual(adjacentPositions.count, 8)
+    }
+    
+    func testGivenNumber_itShouldOnlyHaveAdjacentsInsideOfBounds() {
+        let sut = Day03.Number(value: "3", positions: [Day03.Position(x: 0, y: 0)])
+        let adjacentPositions = sut.getAdjacentPositions()
+        
+        XCTAssertEqual(adjacentPositions.count, 3)
+    }
+    
+    func testGivenNumber_itShouldNotHaveAdjacentPositionThatOverlapsWithNumber() {
+        let sut = Day03.Number(value: "34", positions: [Day03.Position(x: 0, y: 0), Day03.Position(x: 1, y: 0)])
+        // it should not have adjacent positions that overlap with the number
+        let adjacentPositions = sut.getAdjacentPositions()
+        XCTAssertFalse(adjacentPositions.contains(where: { $0.x == 1 && $0.y == 0 }))
+        
+        XCTAssertEqual(adjacentPositions.count, 4)
     }
     
     func testPart2() throws {
         let challenge = Day03(data: testData)
-        XCTAssertEqual(String(describing: challenge.part2()), "0")
+        XCTAssertEqual(String(describing: challenge.part2()), "467835")
     }
 }
